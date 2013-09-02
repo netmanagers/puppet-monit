@@ -16,7 +16,7 @@
 #
 # [*id_file*]
 #   Set the location of the Monit id file which stores the unique id for the
-#   Monit instance. The id is generated and stored on first Monit start. By 
+#   Monit instance. The id is generated and stored on first Monit start. By
 #   Default: the file is placed in $HOME/.monit.id.
 #
 # [*state_file*]
@@ -28,20 +28,20 @@
 #   Default: the file is placed in $HOME/.monit.state.
 #
 # [*mailserver*]
-#   Set the list of mail servers for alert delivery. Multiple servers may be 
-#   specified using a comma separator. If the first mail server fails, Monit 
-#   will use the second mail server in the list and so on. By default Monit uses 
+#   Set the list of mail servers for alert delivery. Multiple servers may be
+#   specified using a comma separator. If the first mail server fails, Monit
+#   will use the second mail server in the list and so on. By default Monit uses
 #   port 25 - it is possible to override this with the PORT option.
 #   Example: localhost
 #            ['localhost 2525', 'otherserver', 'lastserver 1212']
 #   Default: empty
 #
 # [*events_file*]
-#   By default Monit will drop alert events if no mail servers are available. 
-#   If you want to keep the alerts for later delivery retry, you can use the 
-#   EVENTQUEUE statement. The base directory where undelivered alerts will be 
+#   By default Monit will drop alert events if no mail servers are available.
+#   If you want to keep the alerts for later delivery retry, you can use the
+#   EVENTQUEUE statement. The base directory where undelivered alerts will be
 #   stored is specified by the BASEDIR option. You can limit the maximal queue
-#   size using the SLOTS option (if omitted, the queue is limited by space 
+#   size using the SLOTS option (if omitted, the queue is limited by space
 #   available in the back end filesystem).
 #   Default: operatingsystem dependent
 #
@@ -50,28 +50,28 @@
 #   Default: 100
 #
 # [*mmonit_url*]
-#   Send status and events to M/Monit (for more informations about M/Monit 
-#   see http://mmonit.com/). By default Monit registers credentials with 
+#   Send status and events to M/Monit (for more informations about M/Monit
+#   see http://mmonit.com/). By default Monit registers credentials with
 #   M/Monit so M/Monit can smoothly communicate back to Monit and you don't
 #   have to register Monit credentials manually in M/Monit. It is possible to
-#   disable credential registration using the commented out option below. 
+#   disable credential registration using the commented out option below.
 #   Though, if safety is a concern we recommend instead using https when
 #   communicating with M/Monit and send credentials encrypted.
 #   Default: empty
 #
 # [*alert_rcpt*]
-#   You can set alert recipients whom will receive alerts if/when a 
-#   service defined in this file has errors. Alerts may be restricted on 
-#   events by using a filter as in the second example below. 
+#   You can set alert recipients whom will receive alerts if/when a
+#   service defined in this file has errors. Alerts may be restricted on
+#   events by using a filter as in the second example below.
 #   Default: empty
 #
 # [*alert_exceptions*]
 #   Do not alert when Monit start,stop or perform a user initiated action
-#   set alert manager@foo.bar not on { instance, action } 
+#   set alert manager@foo.bar not on { instance, action }
 #   Default: empty
 #
 # [*web_interface_host*]
-#   Monit has an embedded web server which can be used to view status of 
+#   Monit has an embedded web server which can be used to view status of
 #   services monitored and manage services from a web interface. See the
 #   Monit Wiki if you want to enable SSL for the web server.
 #   Default: localhost
@@ -205,17 +205,6 @@
 #   Set to 'true' to enable modules debugging
 #   Can be defined also by the (top scope) variables $monit_debug and $debug
 #
-# [*audit_only*]
-#   Set to 'true' if you don't intend to override existing configuration files
-#   and want to audit the difference between existing files and the ones
-#   managed by Puppet.
-#   Can be defined also by the (top scope) variables $monit_audit_only
-#   and $audit_only
-#
-# [*noops*]
-#   Set noop metaparameter to true for all the resources managed by the module.
-#   Basically you can run a dryrun for this specific module if you set
-#   this to true. Default: false
 #
 # Default class params - As defined in monit::params.
 # Note that these variables are mostly defined and used in the module itself,
@@ -332,8 +321,6 @@ class monit (
   $firewall_src              = params_lookup( 'firewall_src' , 'global' ),
   $firewall_dst              = params_lookup( 'firewall_dst' , 'global' ),
   $debug                     = params_lookup( 'debug' , 'global' ),
-  $audit_only                = params_lookup( 'audit_only' , 'global' ),
-  $noops                     = params_lookup( 'noops' ),
   $package                   = params_lookup( 'package' ),
   $service                   = params_lookup( 'service' ),
   $service_status            = params_lookup( 'service_status' ),
@@ -365,8 +352,6 @@ class monit (
   $bool_puppi=any2bool($puppi)
   $bool_firewall=any2bool($firewall)
   $bool_debug=any2bool($debug)
-  $bool_audit_only=any2bool($audit_only)
-  $bool_noops=any2bool($noops)
 
   ### Definition of some variables used in the module
   $manage_package = $monit::bool_absent ? {
@@ -447,15 +432,7 @@ class monit (
     default   => $web_interface_allow,
   }
 
-  $manage_audit = $monit::bool_audit_only ? {
-    true  => 'all',
-    false => undef,
-  }
-
-  $manage_file_replace = $monit::bool_audit_only ? {
-    true  => false,
-    false => true,
-  }
+  $manage_file_replace = true
 
   $manage_file_source = $monit::source ? {
     ''        => undef,
@@ -475,7 +452,6 @@ class monit (
   ### Managed resources
   package { $monit::package:
     ensure  => $monit::manage_package,
-    noop    => $monit::bool_noops,
   }
 
   service { 'monit':
@@ -485,7 +461,6 @@ class monit (
     hasstatus  => $monit::service_status,
     pattern    => $monit::process,
     require    => Package[$monit::package],
-    noop       => $monit::bool_noops,
   }
 
   file { 'monit.conf':
@@ -500,10 +475,9 @@ class monit (
     content => $monit::manage_file_content,
     replace => $monit::manage_file_replace,
     audit   => $monit::manage_audit,
-    noop    => $monit::bool_noops,
   }
 
-  file { "monit.init":
+  file { 'monit.init':
     ensure  => $monit::manage_file,
     path    => $monit::config_file_init,
     mode    => $monit::config_file_mode,
@@ -526,8 +500,6 @@ class monit (
       purge   => $monit::bool_source_dir_purge,
       force   => $monit::bool_source_dir_purge,
       replace => $monit::manage_file_replace,
-      audit   => $monit::manage_audit,
-      noop    => $monit::bool_noops,
     }
   }
 
@@ -545,7 +517,6 @@ class monit (
       ensure    => $monit::manage_file,
       variables => $classvars,
       helper    => $monit::puppi_helper,
-      noop      => $monit::bool_noops,
     }
   }
 
@@ -559,7 +530,6 @@ class monit (
         target   => $monit::monitor_target,
         tool     => $monit::monitor_tool,
         enable   => $monit::manage_monitor,
-        noop     => $monit::bool_noops,
       }
     }
     if $monit::service != '' {
@@ -571,7 +541,6 @@ class monit (
         argument => $monit::process_args,
         tool     => $monit::monitor_tool,
         enable   => $monit::manage_monitor,
-        noop     => $monit::bool_noops,
       }
     }
   }
@@ -588,7 +557,6 @@ class monit (
       direction   => 'input',
       tool        => $monit::firewall_tool,
       enable      => $monit::manage_firewall,
-      noop        => $monit::bool_noops,
     }
   }
 
@@ -602,7 +570,6 @@ class monit (
       owner   => 'root',
       group   => 'root',
       content => inline_template('<%= scope.to_hash.reject { |k,v| k.to_s =~ /(uptime.*|path|timestamp|free|.*password.*|.*psk.*|.*key)/ }.to_yaml %>'),
-      noop    => $monit::bool_noops,
     }
   }
 
